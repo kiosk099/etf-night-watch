@@ -160,6 +160,6 @@ function applyBeta(o,beta){
   }
 
   console.log('BACKTEST20_JSON_START');
-  console.log(JSON.stringify({config:{targetTimeKST:'08:50',days:DAYS,trainDays:trainDates,testDays},chartErrors,overall,byEtf,candidateResults},null,2));
+  console.log(JSON.stringify({config:{targetTimeKST:'08:50',days:DAYS,trainDays:trainDates,testDays:testDates},chartErrors,overall,byEtf,candidateResults},null,2));
   console.log('BACKTEST20_JSON_END');
 })().catch(e=>{console.error(e.stack||e);process.exit(1);});
