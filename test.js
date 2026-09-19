@@ -15,4 +15,11 @@ let f=c.fairEquity(eq,fu,anchorT,targetT);assert(Math.abs(f.factor-(1.02/1.01))<
 const staleT=Date.parse('2026-09-18T10:00:00Z')/1000,eq2=[{t:regT,p:100},{t:staleT,p:101}],fu2=[{t:regT,p:100},{t:anchorT,p:101},{t:staleT,p:101.5},{t:targetT,p:102}];
 f=c.fairEquity(eq2,fu2,anchorT,targetT);const expected=(1.01/1.01)*(102/101.5);assert(Math.abs(f.factor-expected)<1e-10);assert.equal(f.source,'equity+future');
 const activeSession={code:'REG'};assert.equal(c.classifyQuality(activeSession,2*3600).quality,'stale');assert.equal(c.classifyQuality(activeSession,10*60,{proxy:true}).quality,'live');assert(c.classifyQuality(activeSession,10*60,{proxy:true}).label.includes('프록시'));assert.equal(c.classifyQuality(activeSession,10*60,{fxFallback:true}).quality,'partial');
+assert(Math.abs(c.applyMoveScale(1.02,0.75)-1.015)<1e-12);assert.equal(c.applyMoveScale(1,0.8),1);
+const semi=c.CFG.find(x=>x.code==='381180'),ai=c.CFG.find(x=>x.code==='487230'),space=c.CFG.find(x=>x.code==='0183J0'),gold=c.CFG.find(x=>x.code==='0072R0');
+assert.equal(semi.moveScale,0.75);
+assert.equal(ai.type,'basket');assert.equal(ai.future,'NQ=F');assert.equal(ai.moveScale,0.8);assert.equal(Object.keys(ai.holdings).length,6);
+assert.equal(space.future,'NQ=F');assert.equal(space.backupFuture,'RTY=F');
+assert.equal(gold.moveScale,0.8);
+const {symbolSet}=require('./api/engine');assert.equal(symbolSet().size,15);
 console.log('all tests passed');
