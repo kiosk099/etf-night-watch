@@ -1,6 +1,6 @@
 {
   "name":"etf-night-watch",
-  "version":"1.4.0",
+  "version":"1.5.0",
   "private":true,
   "description":"Personal live estimate dashboard for selected Korean-listed ETFs",
   "scripts":{"test":"node test.js","check":"node --check api/core.js && node --check api/market.js && node --check api/engine.js && node --check api/estimate.js && node --check api/diagnostics.js && node --check test.js"},
