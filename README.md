@@ -4,7 +4,7 @@
 
 ## 현재 운영 버전
 
-- Production: `v1.4.0-stable`
+- Production: `v1.5.0-stable`
 - 운영 주소: `https://etf-night-watch.vercel.app`
 - Git 원본: GitHub `main`
 - 복구 기준점: `baseline-v1.3.0`
@@ -33,9 +33,9 @@
 - Naver Mobile Stock API: 국내 ETF 일별 가격
 - Yahoo Finance Chart API: 미국 ETF·선물·환율 5분봉
 
-현재 Yahoo 요청 심볼은 최대 9개입니다.
+현재 Yahoo 요청 심볼은 최대 15개입니다.
 
-`KRW=X`, `ES=F`, `SOXQ`, `NQ=F`, `QQQ`, `PAVE`, `ARKX`, `RTY=F`, `GC=F`
+`KRW=X`, `ES=F`, `SOXQ`, `NQ=F`, `QQQ`, `PAVE`, `BE`, `GEV`, `VRT`, `FIX`, `PWR`, `CCJ`, `ARKX`, `RTY=F`, `GC=F`
 
 ## 로컬 검증
 
@@ -56,4 +56,4 @@ GitHub Actions는 PR/메인에서 위 검사를 자동 실행하며, `main` 배�
 
 ## 주의
 
-이 앱의 값은 투자 판단용 공식 가격이 아니라 개인 참고용 추정치입니다. 일부 ETF는 QQQ, PAVE, ARKX 같은 대표 프록시와 선물 보정을 사용하므로 실제 ETF의 추적지수·구성종목 변화, 괴리율, LP 호가, 수급 등에 따라 차이가 날 수 있습니다.
+이 앱의 값은 투자 판단용 공식 가격이 아니라 개인 참고용 추정치입니다. 일부 ETF는 대표 프록시와 선물 보정을 사용하며, AI전력핵심인프라는 상위 6개 구성종목 basket을 사용합니다. 실제 ETF의 추적지수·구성종목 변화, 괴리율, LP 호가, 수급 등에 따라 차이가 날 수 있습니다. 최근 20거래일 백테스트와 수정 근거는 `BACKTEST_20D.md`에 기록합니다.
