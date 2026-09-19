@@ -42,9 +42,11 @@ jobs:
           const d = JSON.parse(fs.readFileSync('response.json', 'utf8'));
           const ok = Array.isArray(d.items) ? d.items.filter(x => x && x.dataOk).length : 0;
           const requested = d.sourceSummary?.requestedSymbols;
-          if (d.version !== '1.5.0-stable') throw new Error('unexpected version: ' + d.version);
+          if (d.version !== '1.6.0-stable') throw new Error('unexpected version: ' + d.version);
           if (!Array.isArray(d.items) || d.items.length !== 7) throw new Error('expected 7 ETF items');
           if (!d.krxCloseDate) throw new Error('missing krxCloseDate');
+          if (!d.snapshot?.asOfAt) throw new Error('missing common as-of');
+          if (!Number.isFinite(d.snapshot?.lagSec) || d.snapshot.lagSec < 600) throw new Error('safe lag missing: ' + d.snapshot?.lagSec);
           if (!Number.isFinite(requested) || requested > 16) throw new Error('unexpected requestedSymbols: ' + requested);
           if (ok < 5) throw new Error('too few usable ETF estimates: ' + ok);
           const semi = d.items.find(x => x.code === '381180');
