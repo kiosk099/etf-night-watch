@@ -1,11 +1,11 @@
 const CFG = [
   {code:'360200', name:'ACE 미국S&P500', type:'future', primary:'ES=F', modelLabel:'S&P500 선물', confidence:'high'},
-  {code:'381180', name:'TIGER 미국필라델피아반도체나스닥', type:'equity', primary:'SOXQ', future:'NQ=F', modelLabel:'SOXQ + NQ 보정', confidence:'medium'},
+  {code:'381180', name:'TIGER 미국필라델피아반도체나스닥', type:'equity', primary:'SOXQ', future:'NQ=F', moveScale:0.75, modelLabel:'SOXQ + NQ 보정 ×0.75', confidence:'medium'},
   {code:'381170', name:'TIGER 미국테크TOP10 INDXX', type:'proxy', primary:'QQQ', future:'NQ=F', modelLabel:'QQQ + NQ 보정 (프록시)', confidence:'medium'},
   {code:'481190', name:'SOL 미국테크TOP10', type:'proxy', primary:'QQQ', future:'NQ=F', modelLabel:'QQQ + NQ 보정 (프록시)', confidence:'medium'},
-  {code:'487230', name:'KODEX 미국AI전력핵심인프라', type:'proxy', primary:'PAVE', future:'ES=F', modelLabel:'PAVE + ES 보정 (프록시)', confidence:'medium'},
-  {code:'0183J0', name:'TIGER 미국우주테크', type:'proxy', primary:'ARKX', future:'RTY=F', backupFuture:'NQ=F', modelLabel:'ARKX + RTY 보정 (프록시)', confidence:'medium'},
-  {code:'0072R0', name:'TIGER KRX금현물', type:'timed', primary:'GC=F', modelLabel:'국제금 × 환율', confidence:'medium'}
+  {code:'487230', name:'KODEX 미국AI전력핵심인프라', type:'basket', primary:'PAVE', future:'NQ=F', holdings:{BE:.1898,GEV:.1572,VRT:.1567,FIX:.1112,PWR:.1107,CCJ:.0870}, moveScale:0.80, modelLabel:'상위 6종목 + NQ 보정 ×0.80', confidence:'medium'},
+  {code:'0183J0', name:'TIGER 미국우주테크', type:'proxy', primary:'ARKX', future:'NQ=F', backupFuture:'RTY=F', modelLabel:'ARKX + NQ 보정 (프록시)', confidence:'medium'},
+  {code:'0072R0', name:'TIGER KRX금현물', type:'timed', primary:'GC=F', moveScale:0.80, modelLabel:'국제금 × 환율 ×0.80', confidence:'medium'}
 ];
 
 const num = v => {
@@ -126,5 +126,10 @@ function classifyQuality(session, ageSec, {proxy=false, fxFallback=false}={}) {
   if (fxFallback) {quality=quality==='unavailable'?quality:'partial';label += '·환율미반영';}
   return {quality,label};
 }
+function applyMoveScale(factor, scale=1) {
+  if (!Number.isFinite(factor)) return null;
+  const s=Number.isFinite(scale) ? scale : 1;
+  return 1 + (factor - 1) * s;
+}
 function pct(f) { return (f - 1) * 100; }
-module.exports={CFG,num,kstParts,epochKst,dateKey,parseRowDate,rowClose,selectKrxReference,selectKrxReferenceConsensus,findExactClose,atOrBefore,latestAtOrBefore,ratioLatest,marketSession,regularCloseBefore,fairEquity,classifyQuality,pct};
+module.exports={CFG,num,kstParts,epochKst,dateKey,parseRowDate,rowClose,selectKrxReference,selectKrxReferenceConsensus,findExactClose,atOrBefore,latestAtOrBefore,ratioLatest,marketSession,regularCloseBefore,fairEquity,classifyQuality,applyMoveScale,pct};
