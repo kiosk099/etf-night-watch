@@ -51,7 +51,7 @@ index.html
 - AI전력핵심인프라 → `BE / GEV / VRT / FIX / PWR / CCJ` 가중 basket + `NQ=F` (coverage 70% 미만이면 `PAVE` fallback)
 - 미국우주테크 → `ARKX` + `NQ=F` (fallback: `RTY=F`)
 
-v1.5는 정확도 개선을 위해 AI전력 basket 심볼을 다시 추가해 Yahoo 요청 심볼이 최대 15개입니다. 그래도 v1.3의 약 39개보다는 크게 적습니다.
+v1.5부터 정확도 개선을 위해 AI전력 basket 심볼을 다시 추가해 Yahoo 요청 심볼이 최대 15개입니다. 그래도 v1.3의 약 39개보다는 크게 적습니다.
 
 ### timed
 
@@ -69,6 +69,19 @@ v1.5는 정확도 개선을 위해 AI전력 basket 심볼을 다시 추가해 Ya
 - 미국우주테크: ARKX의 보정선물을 RTY에서 NQ로 변경. 별도 1.5배 보정은 검증 개선폭 대비 과적합 위험 때문에 적용하지 않음.
 
 보정은 `1 + (rawFactor - 1) × moveScale` 형태로 환율까지 반영한 전체 예상 변동폭에 적용합니다. 응답에는 `rawExpectedMovePct`, `calibrationScale`, basket일 경우 `coverage`를 노출합니다.
+
+## 공통 as-of 계산
+
+v1.6부터 모든 종목을 "지금"에 억지로 맞추지 않고 **공통 기준시각(as-of)** 으로 계산합니다.
+
+- 기본 안전지연: 10분
+- 먼저 `현재시각 - 10분`을 상한으로 설정
+- `KRW=X / ES=F / NQ=F / GC=F`의 해당 시각 이전 최신 5분봉 중 가장 오래된 시각을 공통 as-of로 선택
+- 모든 ETF와 환율 계산은 그 공통 시각까지만 사용
+- 미국 ETF/구성종목 체결이 공통 시각보다 한 봉 이상 오래됐으면 선물로 공통 시각까지 continuation
+- API에 `snapshot.asOfAt / lagSec / safeLagSec`, ETF별 `asOfAt / asOfLagSec`를 노출
+
+즉 실시간성보다 **동일 시점 데이터로 계산하는 정확성**을 우선합니다.
 
 ## 휴장·주말 처리
 

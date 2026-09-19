@@ -21,5 +21,17 @@ assert.equal(semi.moveScale,0.75);
 assert.equal(ai.type,'basket');assert.equal(ai.future,'NQ=F');assert.equal(ai.moveScale,0.8);assert.equal(Object.keys(ai.holdings).length,6);
 assert.equal(space.future,'NQ=F');assert.equal(space.backupFuture,'RTY=F');
 assert.equal(gold.moveScale,0.8);
-const {symbolSet}=require('./api/engine');assert.equal(symbolSet().size,15);
+const {symbolSet,commonAsOf,activeDriverSymbols,SAFE_LAG_SEC}=require('./api/engine');assert.equal(symbolSet().size,15);
+assert.equal(SAFE_LAG_SEC,600);assert.deepEqual(activeDriverSymbols().sort(),['ES=F','GC=F','KRW=X','NQ=F'].sort());
+const nowT=Date.parse('2026-09-18T12:00:00Z')/1000,cap=nowT-600;
+const common=commonAsOf({
+  'KRW=X':[{t:cap,p:1300}],
+  'ES=F':[{t:cap,p:6000}],
+  'NQ=F':[{t:cap-300,p:25000}],
+  'GC=F':[{t:cap,p:3800}]
+},nowT);
+assert.equal(common.t,cap-300);assert.equal(common.lagSec,900);
+const eq5=[{t:regT,p:100},{t:targetT-300,p:101}],fu5=[{t:regT,p:100},{t:anchorT,p:101},{t:targetT-300,p:101.5},{t:targetT,p:102}];
+f=c.fairEquity(eq5,fu5,anchorT,targetT);
+assert.equal(f.source,'equity+future');assert.equal(f.futureAt,targetT);
 console.log('all tests passed');
