@@ -3,50 +3,105 @@
 ## 데이터 흐름
 
 ```text
-브라우저(index.html)
+index.html
   -> GET /api/estimate
-      -> 네이버 모바일 국내주식 API: KRX ETF 최근 종가
-      -> Yahoo Finance Chart API: 미국 종목/ETF/선물/환율 5분봉
-      -> api/core.js 계산
-  <- ETF별 추정가/등락률/품질 상태 JSON
+      -> api/engine.js
+          -> api/market.js
+              -> Naver: 국내 ETF 최근 일별 가격
+              -> Yahoo: 미국 ETF/선물/환율 5분봉
+          -> api/core.js
+              -> KRX 기준일 합의
+              -> 자산별 변화율 계산
+              -> 상태/신선도 판정
+  <- 추정가 + 데이터 상태 JSON
+
+/api/diagnostics
+  -> 같은 엔진 + 심볼별 마지막 timestamp / 오류 / cache 상태
 ```
 
-## 기준가 선택
+## KRX 기준일
 
-`selectKrxReference()`가 한국 시간 기준 최근 확정 종가일을 선택합니다.
+7개 ETF의 Naver 일별 데이터에서 각각 최근 확정 거래일을 구한 뒤 다수결로 기준일을 선택합니다.
 
-- 15:35 KST 이후: 당일 종가 사용 가능
-- 15:35 KST 이전: 직전 거래일 종가 사용
+- 15:35 KST 이전: 오늘보다 이전의 최신 거래일
+- 15:35 KST 이후: 오늘 포함 최신 확정 거래일
 - 기준 시각: 해당 거래일 15:30 KST
 
-## 계산 유형
+특정 ETF 하나의 응답 이상이 전체 기준일을 결정하지 않도록 변경했습니다.
+
+## 계산 모델
 
 ### future
-국내 ETF 종가 × 해외 선물 변화 × 원/달러 변화
 
-예: ACE 미국S&P500 → `ES=F`
+국내 ETF 종가 이후 선물 변화 × 원/달러 변화를 적용합니다.
+
+- ACE 미국S&P500 → `ES=F`
 
 ### equity
-미국 ETF/주식의 정규장 종가 이후 변화에 선물을 이용한 앵커 보정을 적용합니다.
 
-예: 필라델피아반도체 → `SOXQ` + `NQ=F`
+미국 ETF의 직전 정규장 종가 대비 움직임에서 KRX 종가 시점까지 이미 반영됐을 선물 움직임을 제거합니다. 미국 ETF 시세가 오래됐고 선물이 더 최신이면 선물 continuation을 적용합니다.
 
-### basket
-ETF 상위 구성종목의 가중 평균 변화를 계산하며 데이터가 비는 경우 대표 프록시를 사용합니다.
+- 필라델피아반도체 → `SOXQ` + `NQ=F`
+
+### proxy
+
+정적 구성종목 10개를 매번 조회하지 않고 대표 ETF + 선물 조합을 사용합니다.
+
+- 미국테크TOP10 계열 → `QQQ` + `NQ=F`
+- AI전력핵심인프라 → `PAVE` + `ES=F`
+- 미국우주테크 → `ARKX` + `RTY=F` (fallback: `NQ=F`)
+
+이 변경으로 Yahoo 요청 심볼을 약 39개에서 9개로 줄였습니다.
 
 ### timed
-시간대별 거래가 이어지는 자산의 변화를 직접 반영합니다.
 
-예: 금 → `GC=F`
+거의 연속적으로 거래되는 자산의 기준시점 대비 변화를 직접 사용합니다.
 
-## 외부 의존성
+- KRX금현물 → `GC=F`
 
-- Naver Mobile Stock API
-- Yahoo Finance Chart API
-- Vercel Serverless Functions
+## 휴장·주말 처리
 
-공식 계약형 데이터 API가 아니므로 응답 구조/접근 제한 변경에 의해 고장날 수 있습니다. 따라서 데이터 공급자별 오류를 화면 값과 분리해서 감시해야 합니다.
+마지막 시세가 45분 이상 오래됐다는 이유만으로 계산을 폐기하지 않습니다.
 
-## 현재 비밀값
+- 시장이 닫혀 있으면 마지막 유효 시세로 계산 유지
+- `sourceAgeSec`로 데이터 경과 시간 노출
+- 상태: `live / delayed / stale / closed / unavailable`
+- 미국 공휴일 판정은 별도 거래 캘린더가 아니라 실제 마지막 시세 timestamp를 우선 사용
 
-현재 소스 기준 환경변수나 API 키는 없습니다. 향후 유료/공식 시세 API로 교체할 경우 키는 Vercel Environment Variables에만 보관하고 저장소에는 `.env.example`의 변수명만 남깁니다.
+## 캐시·장애 내성
+
+### 브라우저/CDN
+
+- 프론트의 `?ts=Date.now()` 제거
+- `no-store` 제거
+- `/api/estimate`: `s-maxage=45, stale-while-revalidate=120`
+
+### 서버 메모리
+
+- Yahoo: 45초 fresh cache, 네트워크 실패 시 최대 24시간 stale cache
+- Naver: 5분 fresh cache, 네트워크 실패 시 최대 24시간 stale cache
+- Naver timeout: 3.5초
+- Yahoo timeout: 4.5초
+- Yahoo 동시 조회: 최대 6개
+
+### 환율
+
+`KRW=X`가 일시적으로 없으면 전체 7개 ETF를 실패시키지 않고 환율 변화 0%를 임시 적용하며 `환율미반영` 상태를 표시합니다.
+
+## 진단
+
+`/api/diagnostics`에서 다음을 확인할 수 있습니다.
+
+- 요청 심볼 목록
+- 심볼별 마지막 timestamp
+- Yahoo/Naver 오류
+- cache hit/miss/stale 상태
+- KRX 기준일 후보
+- 현재 chart range
+
+## 알려진 한계
+
+- Naver/Yahoo 비공식·무계약 API 구조 변경 가능성
+- 미국 공휴일/조기폐장을 별도 캘린더로 직접 판정하지 않음
+- 프록시 ETF는 실제 국내 ETF 추적지수와 완전히 동일하지 않음
+- 추정가는 실제 시초가·LP 호가·괴리율·수급을 예측하지 않음
