@@ -8,7 +8,7 @@ async function buildEstimate({now=Math.floor(Date.now()/1000),debug=false}={}) {
   const K=selectKrxReferenceConsensus(dailyResult.rows,new Date(now*1000));
   if(!K)throw Error('최근 확정 KRX 종가 기준일을 찾지 못했습니다.');
   const symbols=symbolSet(), anchorAgeSec=Math.max(0,now-K.t), range=anchorAgeSec>4.5*86400?'1mo':'5d';
-  const chartResult=await loadCharts(symbols,range,4), charts=chartResult.charts;
+  const chartResult=await loadCharts(symbols,range,6), charts=chartResult.charts;
   const fxR=ratioLatest(charts['KRW=X']||[],K.t,now), fxFactor=fxR?.factor||1, fxFallback=!fxR, items=[];
   for(const c of CFG){
     const close=findExactClose(dailyResult.rows[c.code],K.date);
