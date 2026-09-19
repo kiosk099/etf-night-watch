@@ -27,11 +27,11 @@ ZIP 직접 배포는 사용하지 않습니다.
 `https://etf-night-watch.vercel.app/api/estimate`를 실제 호출해 다음을 검사합니다.
 
 - HTTP 200
-- `version === "1.4.0-stable"`
+- `version === "1.5.0-stable"`
 - ETF 7개 응답
 - 최소 5개 이상 `dataOk`
 - `krxCloseDate` 존재
-- `requestedSymbols <= 10`
+- `requestedSymbols <= 16`
 
 ## 수동 점검 엔드포인트
 
@@ -49,6 +49,8 @@ ZIP 직접 배포는 사용하지 않습니다.
 - ETF별 `dataOk`
 - ETF별 `quality / qualityLabel`
 - ETF별 `sourceAt / sourceAgeSec / mode`
+- ETF별 `calibrationScale / rawExpectedMovePct`
+- basket ETF의 `coverage`
 
 ## 장애 대응
 
@@ -73,6 +75,16 @@ ZIP 직접 배포는 사용하지 않습니다.
 ### 환율미반영
 
 `fx.fallback === true`면 `KRW=X` 조회 실패 상태입니다. 추정가는 기초자산 변화만 반영하고 환율 변화는 0%로 가정합니다.
+
+## 정확도 점검
+
+모델 또는 구성종목을 바꿀 때는 최소 최근 20거래일을 대상으로 08:50 KST 예상가와 실제 KRX 시초가를 비교합니다.
+
+- 앞 14거래일: 후보 선택·보정계수 산출
+- 뒤 6거래일: 미사용 검증 구간
+- 전일 종가 그대로를 기준선으로 함께 비교
+- 검증구간 MAE가 악화되면 보정계수나 프록시를 Production에 반영하지 않음
+- 분석용 임시 workflow/스크립트는 운영 `main`에 병합하지 않음
 
 ## 롤백
 
