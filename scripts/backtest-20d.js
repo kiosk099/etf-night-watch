@@ -159,10 +159,31 @@ function applyBeta(o,beta){
     }).sort((a,b)=>(a.test.mae??999)-(b.test.mae??999));
   }
 
+  function findCandidate(code,id,date){return candidateObs[`${code}:${id}`].find(x=>x.date===date);}
+  const recommended=currentObs.map(o=>{
+    if(o.code==='381180')return applyBeta(o,0.75);
+    if(o.code==='487230'){const x=findCandidate('487230','AI6_NQ',o.date);return x?applyBeta(x,0.80):o;}
+    if(o.code==='0183J0'){const x=findCandidate('0183J0','ARKX_NQ',o.date);return x||o;}
+    if(o.code==='0072R0')return applyBeta(o,0.80);
+    return o;
+  });
+  const recommendedSpaceScaled=currentObs.map(o=>{
+    if(o.code==='381180')return applyBeta(o,0.75);
+    if(o.code==='487230'){const x=findCandidate('487230','AI6_NQ',o.date);return x?applyBeta(x,0.80):o;}
+    if(o.code==='0183J0'){const x=findCandidate('0183J0','ARKX_NQ',o.date);return x?applyBeta(x,1.50):o;}
+    if(o.code==='0072R0')return applyBeta(o,0.80);
+    return o;
+  });
+  const recommendedMetrics={
+    conservative:{all:metric(recommended),test:metric(recommended.filter(x=>testDates.includes(x.date)))},
+    spaceScaled:{all:metric(recommendedSpaceScaled),test:metric(recommendedSpaceScaled.filter(x=>testDates.includes(x.date)))}
+  };
+
   const compact={
     config:{targetTimeKST:'08:50',days:DAYS,trainDays:trainDates,testDays:testDates},
     chartErrors,
     overall,
+    recommendedMetrics,
     byEtf:byEtf.map(x=>({code:x.code,name:x.name,allMAE:x.all.mae,testMAE:x.test.mae,beta:x.beta,calTestMAE:x.calibratedTest.mae,testDir:x.test.dir})),
     candidates:Object.fromEntries(Object.entries(candidateResults).map(([code,arr])=>[code,arr.map(x=>({id:x.id,label:x.label,allMAE:x.all.mae,trainMAE:x.train.mae,testMAE:x.test.mae,beta:x.beta,calTestMAE:x.calibratedTest.mae,testDir:x.test.dir}))]))
   };
