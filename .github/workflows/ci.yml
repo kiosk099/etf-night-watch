@@ -42,11 +42,18 @@ jobs:
           const d = JSON.parse(fs.readFileSync('response.json', 'utf8'));
           const ok = Array.isArray(d.items) ? d.items.filter(x => x && x.dataOk).length : 0;
           const requested = d.sourceSummary?.requestedSymbols;
-          if (d.version !== '1.4.0-stable') throw new Error('unexpected version: ' + d.version);
+          if (d.version !== '1.5.0-stable') throw new Error('unexpected version: ' + d.version);
           if (!Array.isArray(d.items) || d.items.length !== 7) throw new Error('expected 7 ETF items');
           if (!d.krxCloseDate) throw new Error('missing krxCloseDate');
-          if (!Number.isFinite(requested) || requested > 10) throw new Error('unexpected requestedSymbols: ' + requested);
+          if (!Number.isFinite(requested) || requested > 16) throw new Error('unexpected requestedSymbols: ' + requested);
           if (ok < 5) throw new Error('too few usable ETF estimates: ' + ok);
+          const semi = d.items.find(x => x.code === '381180');
+          const ai = d.items.find(x => x.code === '487230');
+          const gold = d.items.find(x => x.code === '0072R0');
+          if (semi?.calibrationScale !== 0.75) throw new Error('semi calibration missing');
+          if (ai?.calibrationScale !== 0.8) throw new Error('AI calibration missing');
+          if (!['basket','basket-fallback'].includes(ai?.mode)) throw new Error('AI basket mode missing: ' + ai?.mode);
+          if (gold?.calibrationScale !== 0.8) throw new Error('gold calibration missing');
           console.log(JSON.stringify({
             version: d.version,
             krxCloseDate: d.krxCloseDate,
