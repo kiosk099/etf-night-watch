@@ -1,0 +1,16 @@
+name: Temporary 3D Backtest
+on:
+  push:
+    branches: [analysis/backtest-3d-20260919]
+permissions:
+  contents: read
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run three-day historical backtest
+        run: node scripts/backtest-3d.js
