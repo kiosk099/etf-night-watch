@@ -159,7 +159,13 @@ function applyBeta(o,beta){
     }).sort((a,b)=>(a.test.mae??999)-(b.test.mae??999));
   }
 
-  console.log('BACKTEST20_JSON_START');
-  console.log(JSON.stringify({config:{targetTimeKST:'08:50',days:DAYS,trainDays:trainDates,testDays:testDates},chartErrors,overall,byEtf,candidateResults},null,2));
-  console.log('BACKTEST20_JSON_END');
+  const compact={
+    config:{targetTimeKST:'08:50',days:DAYS,trainDays:trainDates,testDays:testDates},
+    chartErrors,
+    overall,
+    byEtf:byEtf.map(x=>({code:x.code,name:x.name,allMAE:x.all.mae,testMAE:x.test.mae,beta:x.beta,calTestMAE:x.calibratedTest.mae,testDir:x.test.dir})),
+    candidates:Object.fromEntries(Object.entries(candidateResults).map(([code,arr])=>[code,arr.map(x=>({id:x.id,label:x.label,allMAE:x.all.mae,trainMAE:x.train.mae,testMAE:x.test.mae,beta:x.beta,calTestMAE:x.calibratedTest.mae,testDir:x.test.dir}))]))
+  };
+  console.log('BACKTEST20_COMPACT');
+  console.log(JSON.stringify(compact,null,2));
 })().catch(e=>{console.error(e.stack||e);process.exit(1);});
