@@ -1,35 +1,18 @@
-const assert = require('assert');
-const c = require('./api/core');
-
-const rows=[
-  {localTradedAt:'2026-09-17',closePrice:'7,585'},
-  {localTradedAt:'2026-09-16',closePrice:'7,315'},
-  {localTradedAt:'2026-09-15',closePrice:'7,270'}
-];
-let r=c.selectKrxReference(rows,new Date('2026-09-17T11:00:00Z')); // 20:00 KST
-assert.equal(r.date,'2026-09-17');
-r=c.selectKrxReference(rows,new Date('2026-09-17T05:00:00Z')); // 14:00 KST
-assert.equal(r.date,'2026-09-16');
-assert.equal(c.findExactClose(rows,'2026-09-17').v,7585);
-assert.equal(c.findExactClose(rows,'2026-09-14'),null);
-
-// Fair-value isolation: stock +2% from prior US close, futures had already risen 1% by KRX close -> ~+0.99% after anchor.
-const regT=Date.parse('2026-09-16T20:00:00Z')/1000;
-const anchorT=Date.parse('2026-09-17T06:30:00Z')/1000;
-const targetT=Date.parse('2026-09-17T11:00:00Z')/1000;
-const eq=[{t:regT,p:100},{t:targetT,p:102}];
-const fu=[{t:regT,p:100},{t:anchorT,p:101},{t:targetT,p:102}];
-let f=c.fairEquity(eq,fu,anchorT,targetT);
-assert(Math.abs(f.factor-(1.02/1.01))<1e-10);
-assert.equal(f.directFresh,true);
-
-// Stale stock: future continuation should carry from stale trade to target.
-const staleT=Date.parse('2026-09-17T10:00:00Z')/1000;
-const eq2=[{t:regT,p:100},{t:staleT,p:101}];
-const fu2=[{t:regT,p:100},{t:anchorT,p:101},{t:staleT,p:101.5},{t:targetT,p:102}];
-f=c.fairEquity(eq2,fu2,anchorT,targetT);
-const expected=(1.01*(102/101.5))/(101/100);
-assert(Math.abs(f.factor-expected)<1e-10);
-assert.equal(f.directFresh,false);
-
+const assert=require('assert');
+const c=require('./api/core');
+const rows=[{localTradedAt:'2026-09-18',closePrice:'7,700'},{localTradedAt:'2026-09-17',closePrice:'7,585'},{localTradedAt:'2026-09-16',closePrice:'7,315'}];
+let r=c.selectKrxReference(rows,new Date('2026-09-18T11:00:00Z'));assert.equal(r.date,'2026-09-18');
+r=c.selectKrxReference(rows,new Date('2026-09-18T05:00:00Z'));assert.equal(r.date,'2026-09-17');
+const consensus=c.selectKrxReferenceConsensus({a:rows,b:rows,c:[{localTradedAt:'2026-09-17',closePrice:'1'}]},new Date('2026-09-18T11:00:00Z'));
+assert.equal(consensus.date,'2026-09-18');assert.equal(consensus.votes,2);assert.equal(consensus.total,3);
+assert.equal(c.findExactClose(rows,'2026-09-18').v,7700);assert.equal(c.findExactClose(rows,'2026-09-15'),null);
+const anchorT=Date.parse('2026-09-18T06:30:00Z')/1000,oldT=Date.parse('2026-09-19T00:00:00Z')/1000,weekendT=Date.parse('2026-09-19T04:00:00Z')/1000;
+let rr=c.ratioLatest([{t:anchorT,p:100},{t:oldT,p:102}],anchorT,weekendT);
+assert(rr);assert.equal(rr.factor,1.02);assert.equal(rr.ageSec,4*3600);assert.equal(c.marketSession(weekendT).code,'CLOSED');assert.equal(c.classifyQuality(c.marketSession(weekendT),rr.ageSec).quality,'closed');
+const regT=Date.parse('2026-09-17T20:00:00Z')/1000,targetT=Date.parse('2026-09-18T11:00:00Z')/1000;
+const eq=[{t:regT,p:100},{t:targetT,p:102}],fu=[{t:regT,p:100},{t:anchorT,p:101},{t:targetT,p:102}];
+let f=c.fairEquity(eq,fu,anchorT,targetT);assert(Math.abs(f.factor-(1.02/1.01))<1e-10);assert.equal(f.directFresh,true);
+const staleT=Date.parse('2026-09-18T10:00:00Z')/1000,eq2=[{t:regT,p:100},{t:staleT,p:101}],fu2=[{t:regT,p:100},{t:anchorT,p:101},{t:staleT,p:101.5},{t:targetT,p:102}];
+f=c.fairEquity(eq2,fu2,anchorT,targetT);const expected=(1.01/1.01)*(102/101.5);assert(Math.abs(f.factor-expected)<1e-10);assert.equal(f.source,'equity+future');
+const activeSession={code:'REG'};assert.equal(c.classifyQuality(activeSession,2*3600).quality,'stale');assert.equal(c.classifyQuality(activeSession,10*60,{proxy:true}).quality,'live');assert(c.classifyQuality(activeSession,10*60,{proxy:true}).label.includes('프록시'));assert.equal(c.classifyQuality(activeSession,10*60,{fxFallback:true}).quality,'partial');
 console.log('all tests passed');

@@ -1,0 +1,2 @@
+const {buildEstimate}=require('./engine');
+module.exports=async(req,res)=>{if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});try{const data=await buildEstimate({debug:true});res.setHeader('Cache-Control','public, s-maxage=15, stale-while-revalidate=30');return res.status(200).json(data);}catch(e){res.setHeader('Cache-Control','no-store');return res.status(503).json({error:e.message||'diagnostics failed',version:'1.4.0-stable'});}};
