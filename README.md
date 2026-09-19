@@ -1,29 +1,41 @@
 # ETF Night Watch
 
-개인 보유 ETF의 한국장 종가를 기준으로, 이후 미국 기초자산·선물·원/달러 움직임을 반영해 참고용 예상가를 계산하는 개인용 웹 앱입니다.
+한국장에 상장된 해외자산 ETF의 최근 확정 종가를 기준으로, 이후 미국 기초자산·선물·원/달러 움직임을 반영해 참고용 추정가를 계산하는 개인용 웹 앱입니다.
 
-## 현재 기준 버전
+## 현재 운영 버전
 
-- Baseline: `v1.3.0-live`
-- 복구 기준일: 2026-09-17 운영 배포본
-- 배포 대상: Vercel
-- 배포 소스: GitHub `main`
-- 데이터 저장소: 없음 (서버리스 요청 시 외부 시세 조회)
+- Production: `v1.4.0-stable`
+- 운영 주소: `https://etf-night-watch.vercel.app`
+- Git 원본: GitHub `main`
+- 복구 기준점: `baseline-v1.3.0`
+- 별도 DB/필수 환경변수 없음
 
 ## 구조
 
 ```text
 .
-├─ index.html          # 단일 페이지 UI
+├─ index.html
 ├─ api/
-│  ├─ core.js          # 계산/세션/기준가 로직 및 ETF 설정
-│  └─ estimate.js      # 외부 시세 조회 + API 응답
-├─ test.js             # 핵심 계산 단위 테스트
-├─ vercel.json         # Vercel 함수/보안 헤더 설정
+│  ├─ core.js          # 순수 계산·시간·상태 판정
+│  ├─ market.js        # Naver/Yahoo 조회 + TTL/stale cache
+│  ├─ engine.js        # 전체 추정 엔진
+│  ├─ estimate.js      # 운영 API
+│  └─ diagnostics.js   # 진단 API
+├─ test.js
+├─ vercel.json
 ├─ ARCHITECTURE.md
 ├─ OPERATIONS.md
-└─ package.json
+└─ REVIEW_AND_FIX_PLAN.md
 ```
+
+## 데이터 소스
+
+- Naver Mobile Stock API: 국내 ETF 일별 가격
+- Yahoo Finance Chart API: 미국 ETF·선물·환율 5분봉
+
+현재 Yahoo 요청 심볼은 최대 9개입니다.
+
+`KRW=X`, `ES=F`, `SOXQ`, `NQ=F`, `QQQ`, `PAVE`, `ARKX`, `RTY=F`, `GC=F`
 
 ## 로컬 검증
 
@@ -32,16 +44,16 @@ npm test
 npm run check
 ```
 
-현재 런타임 코드에는 별도 npm 패키지 의존성이 없습니다. `fetch`, `Intl`을 지원하는 최신 Node.js 런타임을 사용합니다.
+GitHub Actions는 PR/메인에서 위 검사를 자동 실행하며, `main` 배포 뒤에는 Production `/api/estimate`를 직접 호출하는 smoke test도 실행합니다.
 
 ## 배포 원칙
 
 1. GitHub `main`을 유일한 원본으로 사용합니다.
-2. Vercel Production은 GitHub `main`에 연결합니다.
-3. 운영 수정은 직접 업로드하지 않고 Git 커밋으로 남깁니다.
-4. 큰 계산 로직 변경 전에는 태그를 남깁니다. 예: `v1.3.0-baseline`.
-5. 배포 후 `/api/estimate` 응답과 화면을 함께 확인합니다.
+2. 수정은 브랜치 → PR → CI → 병합 순서로 진행합니다.
+3. Vercel Preview 성공 후 `main`을 Production에 자동배포합니다.
+4. ZIP 직접 업로드나 운영 서버 직접 수정은 하지 않습니다.
+5. 장애 시 `baseline-v1.3.0` 또는 마지막 정상 커밋으로 롤백합니다.
 
 ## 주의
 
-이 앱의 값은 투자 판단용 공식 가격이 아니라 개인 참고용 추정치입니다. 실제 ETF 가격은 괴리율, LP 호가, 수급, 거래정지/휴장, 시차와 데이터 지연 등의 영향을 받을 수 있습니다.
+이 앱의 값은 투자 판단용 공식 가격이 아니라 개인 참고용 추정치입니다. 일부 ETF는 QQQ, PAVE, ARKX 같은 대표 프록시와 선물 보정을 사용하므로 실제 ETF의 추적지수·구성종목 변화, 괴리율, LP 호가, 수급 등에 따라 차이가 날 수 있습니다.
