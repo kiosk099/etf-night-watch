@@ -104,7 +104,8 @@ function fairEquity(eqPoints, futurePoints, anchorT, targetT) {
       if (anchorMove > 0) {factor=raw/anchorMove;adjusted=true;}
     }
     const lag=targetT-cur.t;
-    if (lag > 15*60) {
+    // 5분봉 기준 공통 as-of 시각까지 선물로 이어 붙여 시점 혼합을 줄인다.
+    if (lag >= 5*60) {
       const fc=atOrBefore(futurePoints,cur.t), ft=latestAtOrBefore(futurePoints,targetT);
       if (fc?.p && ft?.p && ft.t > cur.t && ft.t >= fc.t) {
         continuation=ft.p/fc.p; factor*=continuation; futureAt=ft.t;
