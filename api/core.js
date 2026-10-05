@@ -87,7 +87,9 @@ function regularCloseBefore(points, anchorT) {
     const x=points[i];
     if (x.t >= anchorT) continue;
     const p=etParts(x.t), min=+p.hour*60 + +p.minute;
-    if (!['Sat','Sun'].includes(p.weekday) && min >= 15*60+50 && min <= 16*60+5) return x;
+    // Yahoo 5분봉 t는 봉 시작 시각이므로 15:55 봉의 종가가 16:00 정규장 마감가다.
+    // 16:00 이후 봉은 장후 거래이므로 제외한다.
+    if (!['Sat','Sun'].includes(p.weekday) && min >= 15*60+50 && min < 16*60) return x;
   }
   return null;
 }
@@ -96,13 +98,15 @@ function fairEquity(eqPoints, futurePoints, anchorT, targetT) {
   const reg=regularCloseBefore(eqPoints,anchorT), cur=latestAtOrBefore(eqPoints,targetT);
   if (!reg?.p || !cur?.p || cur.t < reg.t) return null;
   const raw=cur.p/reg.p;
-  let factor=raw, adjusted=false, continuation=1, futureAt=null;
+  let factor=raw, adjusted=false, adjustFailed=false, continuation=1, futureAt=null;
   if (futurePoints?.length) {
     const fr=atOrBefore(futurePoints,reg.t), fa=atOrBefore(futurePoints,anchorT);
     if (fr?.p && fa?.p && anchorT-fa.t <= 90*60) {
       const anchorMove=fa.p/fr.p;
       if (anchorMove > 0) {factor=raw/anchorMove;adjusted=true;}
     }
+    // 보정에 실패하면 한국 종가에 이미 반영된 선물 움직임이 이중 계산되므로 표시한다.
+    if (!adjusted) adjustFailed=true;
     const lag=targetT-cur.t;
     // 5분봉 기준 공통 as-of 시각까지 선물로 이어 붙여 시점 혼합을 줄인다.
     if (lag >= 5*60) {
@@ -113,9 +117,9 @@ function fairEquity(eqPoints, futurePoints, anchorT, targetT) {
     }
   }
   const sourceAt=Math.max(cur.t,futureAt || 0);
-  return {factor,adjusted,continuation,directFresh:(targetT-cur.t)<=15*60,equityAt:cur.t,futureAt,sourceAt,ageSec:Math.max(0,targetT-sourceAt),source:futureAt?'equity+future':(adjusted?'equity-adjusted':'equity')};
+  return {factor,adjusted,adjustFailed,continuation,directFresh:(targetT-cur.t)<=15*60,equityAt:cur.t,futureAt,sourceAt,ageSec:Math.max(0,targetT-sourceAt),source:futureAt?'equity+future':(adjusted?'equity-adjusted':'equity')};
 }
-function classifyQuality(session, ageSec, {proxy=false, fxFallback=false}={}) {
+function classifyQuality(session, ageSec, {proxy=false, fxFallback=false, adjustFailed=false}={}) {
   if (!Number.isFinite(ageSec)) return {quality:'unavailable',label:'미수신'};
   const active=['PRE','REG','POST'].includes(session?.code);
   let quality,label;
@@ -125,6 +129,7 @@ function classifyQuality(session, ageSec, {proxy=false, fxFallback=false}={}) {
   else {quality='stale';label='오래된 시세';}
   if (proxy) label += '·프록시';
   if (fxFallback) {quality=quality==='unavailable'?quality:'partial';label += '·환율미반영';}
+  if (adjustFailed) {quality=quality==='unavailable'?quality:'partial';label += '·선물보정실패';}
   return {quality,label};
 }
 function applyMoveScale(factor, scale=1) {

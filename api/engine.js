@@ -41,10 +41,11 @@ function basketEquity(c,charts,anchorT,targetT){
   const future=charts[c.future]||charts[c.backupFuture]||null;
   const entries=Object.entries(c.holdings||{});
   const total=entries.reduce((sum,[,weight])=>sum+weight,0);
-  let weighted=0,covered=0,maxAge=0,sourceAt=null;
+  let weighted=0,covered=0,maxAge=0,sourceAt=null,adjustFailed=false;
   for(const [symbol,weight] of entries){
     const x=fairEquity(charts[symbol]||[],future,anchorT,targetT);
     if(!x?.factor)continue;
+    if(x.adjustFailed)adjustFailed=true;
     weighted+=weight*x.factor;
     covered+=weight;
     maxAge=Math.max(maxAge,x.ageSec||0);
@@ -52,7 +53,7 @@ function basketEquity(c,charts,anchorT,targetT){
   }
   const coverage=total?covered/total:0;
   if(coverage>=0.70){
-    return {factor:weighted/covered,sourceAt,ageSec:maxAge,mode:'basket',coverage};
+    return {factor:weighted/covered,sourceAt,ageSec:maxAge,mode:'basket',coverage,adjustFailed};
   }
   if(c.primary){
     const x=fairEquity(charts[c.primary]||[],future,anchorT,targetT);
@@ -85,15 +86,16 @@ async function buildEstimate({now=Math.floor(Date.now()/1000),debug=false}={}) {
     }else{
       const future=charts[c.future]||charts[c.backupFuture]||null;
       const x=fairEquity(charts[c.primary]||[],future,K.t,targetT);
-      if(x)calc={factor:x.factor,sourceAt:x.sourceAt,ageSec:Math.max(0,now-x.sourceAt),mode:x.source};
+      if(x)calc={factor:x.factor,sourceAt:x.sourceAt,ageSec:Math.max(0,now-x.sourceAt),mode:x.source,adjustFailed:x.adjustFailed};
     }
 
     const dataOk=!!close?.v&&!!calc?.factor;
     const rawFactor=dataOk?calc.factor*fxFactor:null;
     const calibrationScale=c.moveScale??1;
-    const factor=dataOk?applyMoveScale(rawFactor,calibrationScale):null;
+    // 보정계수는 기초자산 변동에만 적용하고, 환율 변동은 1:1로 반영한다.
+    const factor=dataOk?applyMoveScale(calc.factor,calibrationScale)*fxFactor:null;
     const combinedAge=dataOk?Math.max(calc.ageSec||0,fxR?.sourceAt?Math.max(0,now-fxR.sourceAt):0):null;
-    const q=classifyQuality(session,combinedAge,{proxy:c.type==='proxy',fxFallback});
+    const q=classifyQuality(session,combinedAge,{proxy:c.type==='proxy',fxFallback,adjustFailed:!!calc?.adjustFailed});
 
     items.push({
       code:c.code,name:c.name,marketClose:close?.v??null,
@@ -103,6 +105,7 @@ async function buildEstimate({now=Math.floor(Date.now()/1000),debug=false}={}) {
       underlyingMovePct:calc?.factor?pct(calc.factor):null,
       fxMovePct:fxR?.factor?pct(fxR.factor):0,
       fxMode:fxFallback?'neutral-fallback':'live-or-last',
+      futureAdjustFailed:!!calc?.adjustFailed,
       calibrationScale,
       coverage:calc?.coverage??null,
       modelLabel:c.modelLabel,confidence:c.confidence,
@@ -116,7 +119,7 @@ async function buildEstimate({now=Math.floor(Date.now()/1000),debug=false}={}) {
   }
 
   const result={
-    version:'1.6.0-stable',
+    version:'1.6.1-stable',
     generatedAt:new Date(now*1000).toISOString(),
     snapshot:{
       frozen:!['PRE','REG','POST'].includes(session.code),
